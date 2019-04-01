@@ -19,6 +19,7 @@ type Report struct {
 	Message  string
 }
 
+// TODO: 入口，有main，有HTTP API。
 func main() {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "example/test.go", nil, parser.ParseComments)
@@ -48,12 +49,9 @@ func main() {
 
 		var report Report
 
-		var funcName string
 		switch v := goStmt.Call.Fun.(type) {
 		case *ast.Ident:
-			funcName = v.Name
 			report.FuncName = v.Name
-			report.FuncPos = v.NamePos
 		default:
 			log.Println("unexpected...")
 			return true
@@ -61,13 +59,14 @@ func main() {
 
 		// TODO：go 匿名函数 没考虑
 		// get func from cache
-		fn, ok := funcMap[funcName]
+		fn, ok := funcMap[report.FuncName]
 		if !ok {
 			// unexpected
 			report.Message = "func not found"
 			reports = append(reports, report)
 			return true
 		}
+		report.FuncPos = fn.Pos()
 
 		// empty body, ignore
 		if len(fn.Body.List) == 0 {
@@ -106,7 +105,7 @@ func main() {
 
 	fmt.Println("panic risk detected:")
 	for _, report := range reports {
-		fmt.Printf("=> function/method: %v, risk: %v\n", report.FuncName, report.Message)
+		fmt.Printf("=> function/method: %v %v, risk: %v\n", report.FuncName, fset.Position(report.FuncPos), report.Message)
 	}
 	os.Exit(2)
 }
